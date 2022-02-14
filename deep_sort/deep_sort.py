@@ -6,7 +6,7 @@ from .sort.nn_matching import NearestNeighborDistanceMetric
 from .sort.detection import Detection
 from .sort.tracker import Tracker
 
-sys.path.append('deep_sort/deep/reid')
+sys.path.append('./Yolov5_DeepSort_Pytorch/deep_sort/deep/reid')
 from torchreid.utils import FeatureExtractor
 
 __all__ = ['DeepSort']
