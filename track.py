@@ -190,9 +190,11 @@ def detect(opt):
                                          ]
                         cropped_image = cv2.cvtColor(cropped_image, cv2.COLOR_BGR2RGB)
                         cropped_image = Image.fromarray(cropped_image)
-                        movenet_engine.run(
+                        result_image = movenet_engine.run(
                             cropped_image, frame_idx + 1, id)
-
+                        result_image = numpy.asarray(result_image)
+                        result_image = cv2.cvtColor(result_image, cv2.COLOR_RGB2BGR)
+                        im0[bboxes[1]:bboxes[3], bboxes[0]:bboxes[2]] = result_image
                         c = int(cls)  # integer class
                         label = f'{id} {names[c]} {conf:.2f}'
                         annotator.box_label(bboxes, label, color=colors(c, True))
