@@ -2,6 +2,7 @@
 import os
 
 import numpy
+from PIL import Image
 
 os.environ["OMP_NUM_THREADS"] = "1"
 os.environ["OPENBLAS_NUM_THREADS"] = "1"
@@ -34,7 +35,7 @@ from deep_sort.utils.parser import get_config
 from deep_sort.deep_sort import DeepSort
 
 sys.path.insert(0, './movenet')
-from movenet_pose_estimation import main
+from movenet_pose_estimation import MovenetEngine
 
 FILE = Path(__file__).resolve()
 ROOT = FILE.parents[0]  # yolov5 deepsort root directory
@@ -77,11 +78,14 @@ def detect(opt):
     save_dir = increment_path(Path(project) / name, exist_ok=exist_ok)  # increment run
     save_dir.mkdir(parents=True, exist_ok=True)  # make dir
 
-    # Load model
+    # Load detection model
     device = select_device(device)
     model = DetectMultiBackend(yolo_model, device=device, dnn=opt.dnn)
     stride, names, pt, jit, _ = model.stride, model.names, model.pt, model.jit, model.onnx
     imgsz = check_img_size(imgsz, s=stride)  # check image size
+
+    # Load pose model
+    movenet_engine = MovenetEngine()
 
     # Half
     half &= pt and device.type != 'cpu'  # half precision only supported by PyTorch on CUDA
@@ -180,11 +184,14 @@ def detect(opt):
 
                         print(bboxes)
                         print(numpy.shape(im0))
-                        main(
-                            cv2.cvtColor(im0[
+                        cropped_image = im0[
                                          bboxes[1]:bboxes[3],
                                          bboxes[0]:bboxes[2],
-                                         ], cv2.COLOR_BGR2RGB), frame_idx + 1, id)
+                                         ]
+                        cropped_image = cv2.cvtColor(cropped_image, cv2.COLOR_BGR2RGB)
+                        cropped_image = Image.fromarray(cropped_image)
+                        movenet_engine.run(
+                            cropped_image, frame_idx + 1, id)
 
                         c = int(cls)  # integer class
                         label = f'{id} {names[c]} {conf:.2f}'
