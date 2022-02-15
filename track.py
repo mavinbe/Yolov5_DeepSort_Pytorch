@@ -1,5 +1,8 @@
 # limit the number of cpus used by high performance libraries
 import os
+
+import numpy
+
 os.environ["OMP_NUM_THREADS"] = "1"
 os.environ["OPENBLAS_NUM_THREADS"] = "1"
 os.environ["MKL_NUM_THREADS"] = "1"
@@ -29,6 +32,9 @@ from yolov5.utils.torch_utils import select_device, time_sync
 from yolov5.utils.plots import Annotator, colors
 from deep_sort.utils.parser import get_config
 from deep_sort.deep_sort import DeepSort
+
+sys.path.insert(0, './movenet')
+from movenet_pose_estimation import main
 
 FILE = Path(__file__).resolve()
 ROOT = FILE.parents[0]  # yolov5 deepsort root directory
@@ -172,9 +178,18 @@ def detect(opt):
                         id = output[4]
                         cls = output[5]
 
+                        print(bboxes)
+                        print(numpy.shape(im0))
+                        main(
+                            cv2.cvtColor(im0[
+                                         bboxes[1]:bboxes[3],
+                                         bboxes[0]:bboxes[2],
+                                         ], cv2.COLOR_BGR2RGB), frame_idx + 1, id)
+
                         c = int(cls)  # integer class
                         label = f'{id} {names[c]} {conf:.2f}'
                         annotator.box_label(bboxes, label, color=colors(c, True))
+
 
                         if save_txt:
                             # to MOT format
