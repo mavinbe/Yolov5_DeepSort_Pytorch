@@ -2,6 +2,8 @@ import numpy as np
 import torch
 import sys
 
+from utils.general import LOGGER
+from utils.torch_utils import time_sync
 from .sort.nn_matching import NearestNeighborDistanceMetric
 from .sort.detection import Detection
 from .sort.tracker import Tracker
@@ -13,7 +15,7 @@ __all__ = ['DeepSort']
 
 
 class DeepSort(object):
-    def __init__(self, model_type, device, max_dist=0.2, max_iou_distance=0.7, max_age=70, n_init=3, nn_budget=100):
+    def __init__(self, model_type, device, max_dist=0.2, max_iou_distance=0.7, max_age=70, n_init=3, nn_budget=100, _lambda=0):
 
         self.extractor = FeatureExtractor(
             model_name=model_type,
@@ -24,12 +26,14 @@ class DeepSort(object):
         metric = NearestNeighborDistanceMetric(
             "cosine", max_cosine_distance, nn_budget)
         self.tracker = Tracker(
-            metric, max_iou_distance=max_iou_distance, max_age=max_age, n_init=n_init)
+            metric, max_iou_distance=max_iou_distance, max_age=max_age, n_init=n_init, _lambda=_lambda)
 
     def update(self, bbox_xywh, confidences, classes, ori_img, use_yolo_preds=False):
         self.height, self.width = ori_img.shape[:2]
         # generate detections
+        t1 = time_sync()
         features = self._get_features(bbox_xywh, ori_img)
+        t2 = time_sync()
         bbox_tlwh = self._xywh_to_tlwh(bbox_xywh)
         detections = [Detection(bbox_tlwh[i], conf, features[i]) for i, conf in enumerate(
             confidences)]
@@ -38,10 +42,12 @@ class DeepSort(object):
         boxes = np.array([d.tlwh for d in detections])
         scores = np.array([d.confidence for d in detections])
 
+        t3 = time_sync()
         # update tracker
         self.tracker.predict()
+        t4 = time_sync()
         self.tracker.update(detections, classes)
-
+        t5 = time_sync()
         # output bbox identities
         outputs = []
         for track in self.tracker.tracks:
@@ -58,6 +64,9 @@ class DeepSort(object):
             outputs.append(np.array([x1, y1, x2, y2, track_id, class_id], dtype=np.int))
         if len(outputs) > 0:
             outputs = np.stack(outputs, axis=0)
+        t6 = time_sync()
+        #LOGGER.info(f'update_tracker:({(t6 - t1) * 1000:.3f}ms) _get_features::({(t2 - t1) * 1000:.3f}ms), prepare::({(t3 - t2) * 1000:.3f}ms), predict::({(t4 - t3) * 1000:.3f}ms), tracker.update::({(t5 - t4) * 1000:.3f}ms), appendix::({(t6 - t5) * 1000:.3f}ms)')
+
         return outputs
 
     """
