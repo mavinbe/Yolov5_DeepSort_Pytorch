@@ -50,7 +50,10 @@ class DeepSort(object):
         t5 = time_sync()
         # output bbox identities
         outputs = []
+        confirmed_id_list = []
         for track in self.tracker.tracks:
+            if track.is_confirmed():
+                confirmed_id_list.append(track.track_id)
             if not track.is_confirmed() or track.time_since_update > 1:
                 continue
             if use_yolo_preds:
@@ -61,13 +64,14 @@ class DeepSort(object):
                 x1, y1, x2, y2 = self._tlwh_to_xyxy(box)
             track_id = track.track_id
             class_id = track.class_id
+            time_since_update = track.time_since_update
             outputs.append(np.array([x1, y1, x2, y2, track_id, class_id], dtype=np.int))
         if len(outputs) > 0:
             outputs = np.stack(outputs, axis=0)
         t6 = time_sync()
         #LOGGER.info(f'update_tracker:({(t6 - t1) * 1000:.3f}ms) _get_features::({(t2 - t1) * 1000:.3f}ms), prepare::({(t3 - t2) * 1000:.3f}ms), predict::({(t4 - t3) * 1000:.3f}ms), tracker.update::({(t5 - t4) * 1000:.3f}ms), appendix::({(t6 - t5) * 1000:.3f}ms)')
 
-        return outputs
+        return outputs, confirmed_id_list
 
     """
     TODO:
